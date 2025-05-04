@@ -12,28 +12,16 @@ async def ask_agent(request: Request):
     query = data.get("query")
 
     # Execute the graph
-    events = graph.stream({"messages": [{"role": "user", "content": query}]}, config={"configurable": {"thread_id": str(uuid.uuid4()), "user_id": "1"}})
+    events = graph.stream({"messages": [{"role": "user", "content": query}]}, config={"configurable": {"thread_id": "1", "user_id": "1"}})
 
     response = ""
-    for ns, update in events:
-        for node, node_updates in update.items():
-            if node_updates is None:
-                continue
+    for event in events:
+        # Each event is a dictionary with agent names as keys
+        for agent_name, agent_data in event.items():
+            if "messages" in agent_data:
+                # Get the last message from the messages array
+                last_message = agent_data["messages"][-1]
+                if "content" in last_message:
+                    response += last_message["content"] + "\n"
 
-            if isinstance(node_updates, (dict, tuple)):
-                node_updates_list = [node_updates]
-            elif isinstance(node_updates, list):
-                node_updates_list = node_updates
-            else:
-                continue
-
-            for node_updates in node_updates_list:
-                if isinstance(node_updates, tuple):
-                    continue
-                messages_key = next(
-                    (k for k in node_updates.keys() if "messages" in k), None
-                )
-                if messages_key is not None and node_updates[messages_key]:
-                    response += node_updates[messages_key][-1].content
-
-    return {"response": response}
+    return {"response": response.strip()}
